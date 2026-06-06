@@ -14,27 +14,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const labels = {
-  cin: 'رقم الهوية (CIN)',
-  fatherName: 'اسم الأب',
-  motherName: 'اسم الأم',
-  lastName: 'اللقب',
-  tribe: 'القبيلة',
-  origin: 'الأصل'
-};
+const fields = [
+  { key: 'fullName', label: 'الاسم الكامل' },
+  { key: 'cin', label: 'رقم البطاقة (CIN)' },
+  { key: 'birthYear', label: 'سنة الازدياد' },
+  { key: 'fatherName', label: 'اسم الأب الكامل' },
+  { key: 'fatherCin', label: 'رقم بطاقة الأب' },
+  { key: 'fatherBirthYear', label: 'سنة ازدياد الأب' },
+  { key: 'motherName', label: 'اسم الأم الكامل' },
+  { key: 'motherCin', label: 'رقم بطاقة الأم' },
+  { key: 'motherBirthYear', label: 'سنة ازدياد الأم' },
+  { key: 'lastName', label: 'اللقب' },
+  { key: 'tribe', label: 'القبيلة' },
+  { key: 'origin', label: 'الأصل' },
+];
+
+const emptyForm = Object.fromEntries(fields.map(f => [f.key, '']));
 
 function App() {
-  const [form, setForm] = useState({
-    cin: '', fatherName: '', motherName: '',
-    lastName: '', tribe: '', origin: ''
-  });
+  const [form, setForm] = useState(emptyForm);
   const [relatives, setRelatives] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!form.cin || !form.lastName) {
-      setMessage('⚠️ يرجى ملء رقم الهوية واللقب على الأقل');
+    if (!form.fullName || !form.lastName) {
+      setMessage('⚠️ يرجى ملء الاسم الكامل واللقب على الأقل');
       return;
     }
     setLoading(true);
@@ -58,14 +63,14 @@ function App() {
       </h1>
       <p style={{textAlign:'center', color:'#7f8c8d'}}>سجّل بياناتك واكتشف أقاربك</p>
 
-      {Object.keys(labels).map(field => (
-        <div key={field} style={{marginBottom:12}}>
+      {fields.map(f => (
+        <div key={f.key} style={{marginBottom:12}}>
           <label style={{display:'block', marginBottom:4, fontWeight:'bold', color:'#2c3e50'}}>
-            {labels[field]}
+            {f.label}
           </label>
           <input
-            value={form[field]}
-            onChange={e => setForm({...form, [field]: e.target.value})}
+            value={form[f.key]}
+            onChange={e => setForm({...form, [f.key]: e.target.value})}
             style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #bdc3c7', fontSize:16, boxSizing:'border-box'}}
           />
         </div>
@@ -86,8 +91,13 @@ function App() {
           <h3 style={{color:'#2c3e50'}}>الأقارب المكتشفون:</h3>
           {relatives.map((r, i) => (
             <div key={i} style={{background:'#ecf0f1', borderRadius:8, padding:12, marginBottom:8}}>
-              <strong>{r.fatherName} {r.lastName}</strong>
-              <div style={{color:'#7f8c8d', fontSize:14}}>القبيلة: {r.tribe} | الأصل: {r.origin}</div>
+              <strong>{r.fullName}</strong>
+              <div style={{color:'#7f8c8d', fontSize:14}}>
+                اللقب: {r.lastName} | القبيلة: {r.tribe} | الأصل: {r.origin}
+              </div>
+              <div style={{color:'#7f8c8d', fontSize:14}}>
+                الأب: {r.fatherName} | الأم: {r.motherName}
+              </div>
             </div>
           ))}
         </div>
