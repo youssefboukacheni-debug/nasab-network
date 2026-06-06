@@ -29,88 +29,105 @@ const fields = [
   { key: 'motherName', label: 'اسم الأم الكامل' },
   { key: 'motherCin', label: 'رقم بطاقة الأم' },
   { key: 'motherBirthYear', label: 'سنة ازدياد الأم' },
-  { key: 'pgfCin', label: 'رقم بطاقة جد الأب' },
-  { key: 'pgmCin', label: 'رقم بطاقة جدة الأب' },
-  { key: 'mgfCin', label: 'رقم بطاقة جد الأم' },
-  { key: 'mgmCin', label: 'رقم بطاقة جدة الأم' },
 ];
 
 const emptyForm = Object.fromEntries(fields.map(function(f) { return [f.key, '']; }));
 
-function getRelation(me, other) {
+function getRelation(me, other, allMembers) {
   var male = other.gender === 'ذكر';
 
+  // أب / أم مباشر
   if (me.fatherCin && me.fatherCin === other.cin) { return male ? 'أب' : 'أم'; }
   if (me.motherCin && me.motherCin === other.cin) { return male ? 'أب' : 'أم'; }
+
+  // ابن / ابنة مباشر
   if (other.fatherCin && other.fatherCin === me.cin) { return male ? 'ابن' : 'ابنة'; }
   if (other.motherCin && other.motherCin === me.cin) { return male ? 'ابن' : 'ابنة'; }
+
+  // زوج / زوجة
   if (me.spouseCin && me.spouseCin === other.cin) { return male ? 'زوج' : 'زوجة'; }
   if (other.spouseCin && other.spouseCin === me.cin) { return male ? 'زوج' : 'زوجة'; }
 
+  // أخ / أخت
   var sameFather = me.fatherCin && other.fatherCin && me.fatherCin === other.fatherCin;
   var sameMother = me.motherCin && other.motherCin && me.motherCin === other.motherCin;
   if (sameFather && sameMother) { return male ? 'أخ شقيق' : 'أخت شقيقة'; }
   if (sameFather) { return male ? 'أخ من الأب' : 'أخت من الأب'; }
   if (sameMother) { return male ? 'أخ من الأم' : 'أخت من الأم'; }
 
-  if (me.pgfCin && me.pgfCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
-  if (me.pgmCin && me.pgmCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
-  if (me.mgfCin && me.mgfCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
-  if (me.mgmCin && me.mgmCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
+  // جد / جدة (من بيانات الأب المسجل)
+  var myFather = allMembers.find(function(m) { return m.cin === me.fatherCin; });
+  var myMother = allMembers.find(function(m) { return m.cin === me.motherCin; });
 
-  if (other.pgfCin && other.pgfCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-  if (other.pgmCin && other.pgmCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-  if (other.mgfCin && other.mgfCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-  if (other.mgmCin && other.mgmCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-
-  var samePGF = me.pgfCin && other.pgfCin && me.pgfCin === other.pgfCin;
-  if (samePGF && me.fatherCin !== other.fatherCin) { return male ? 'عم' : 'عمة'; }
-
-  var sameMGF = me.mgfCin && other.mgfCin && me.mgfCin === other.mgfCin;
-  if (sameMGF && me.motherCin !== other.motherCin) { return male ? 'خال' : 'خالة'; }
-
-  if (samePGF && me.fatherCin && other.fatherCin && me.fatherCin !== other.fatherCin) {
-    return male ? 'ابن عم' : 'ابنة عم';
+  if (myFather) {
+    if (myFather.fatherCin && myFather.fatherCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
+    if (myFather.motherCin && myFather.motherCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
   }
-  if (sameMGF && me.motherCin && other.motherCin && me.motherCin !== other.motherCin) {
-    return male ? 'ابن خال' : 'ابنة خال';
+  if (myMother) {
+    if (myMother.fatherCin && myMother.fatherCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
+    if (myMother.motherCin && myMother.motherCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
   }
 
-  if (me.lastName && other.lastName && me.lastName === other.lastName) {
-    return 'قريب';
+  // حفيد / حفيدة
+  var otherFather = allMembers.find(function(m) { return m.cin === other.fatherCin; });
+  var otherMother = allMembers.find(function(m) { return m.cin === other.motherCin; });
+  if (otherFather) {
+    if (otherFather.fatherCin === me.cin || otherFather.motherCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
   }
+  if (otherMother) {
+    if (otherMother.fatherCin === me.cin || otherMother.motherCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
+  }
+
+  // عم / عمة (أخ الأب)
+  if (myFather && other.fatherCin && myFather.fatherCin && other.fatherCin === myFather.fatherCin && other.cin !== me.fatherCin) {
+    return male ? 'عم' : 'عمة';
+  }
+
+  // خال / خالة (أخ الأم)
+  if (myMother && other.fatherCin && myMother.fatherCin && other.fatherCin === myMother.fatherCin && other.cin !== me.motherCin) {
+    return male ? 'خال' : 'خالة';
+  }
+
+  // ابن/ابنة عم أو عمة
+  if (myFather && other.fatherCin) {
+    var otherParent = allMembers.find(function(m) { return m.cin === other.fatherCin || m.cin === other.motherCin; });
+    if (otherParent && myFather.fatherCin && otherParent.fatherCin === myFather.fatherCin && otherParent.cin !== me.fatherCin) {
+      return male ? 'ابن عم' : 'ابنة عم';
+    }
+  }
+
+  // ابن/ابنة خال أو خالة
+  if (myMother && other.motherCin) {
+    var otherParent2 = allMembers.find(function(m) { return m.cin === other.fatherCin || m.cin === other.motherCin; });
+    if (otherParent2 && myMother.fatherCin && otherParent2.fatherCin === myMother.fatherCin && otherParent2.cin !== me.motherCin) {
+      return male ? 'ابن خال' : 'ابنة خال';
+    }
+  }
+
+  // أخ/أخت الزوج أو الزوجة
+  if (me.spouseCin) {
+    var spouse = allMembers.find(function(m) { return m.cin === me.spouseCin; });
+    if (spouse) {
+      var spouseSameFather = spouse.fatherCin && other.fatherCin && spouse.fatherCin === other.fatherCin;
+      var spouseSameMother = spouse.motherCin && other.motherCin && spouse.motherCin === other.motherCin;
+      if (spouseSameFather || spouseSameMother) { return male ? 'أخ الزوج/الزوجة' : 'أخت الزوج/الزوجة'; }
+    }
+  }
+
+  // نفس اللقب
+  if (me.lastName && other.lastName && me.lastName === other.lastName) { return 'قريب'; }
 
   return '';
 }
 
 export default function App() {
-  var stateArr = useState('home');
-  var page = stateArr[0];
-  var setPage = stateArr[1];
-
-  var formArr = useState(emptyForm);
-  var form = formArr[0];
-  var setForm = formArr[1];
-
-  var relArr = useState([]);
-  var relatives = relArr[0];
-  var setRelatives = relArr[1];
-
-  var membArr = useState([]);
-  var allMembers = membArr[0];
-  var setAllMembers = membArr[1];
-
-  var msgArr = useState('');
-  var message = msgArr[0];
-  var setMessage = msgArr[1];
-
-  var colorArr = useState('#27ae60');
-  var msgColor = colorArr[0];
-  var setMsgColor = colorArr[1];
-
-  var loadArr = useState(false);
-  var loading = loadArr[0];
-  var setLoading = loadArr[1];
+  var s1 = useState('home'); var page = s1[0]; var setPage = s1[1];
+  var s2 = useState(emptyForm); var form = s2[0]; var setForm = s2[1];
+  var s3 = useState([]); var relatives = s3[0]; var setRelatives = s3[1];
+  var s4 = useState([]); var allMembers = s4[0]; var setAllMembers = s4[1];
+  var s5 = useState(''); var message = s5[0]; var setMessage = s5[1];
+  var s6 = useState('#27ae60'); var msgColor = s6[0]; var setMsgColor = s6[1];
+  var s7 = useState(false); var loading = s7[0]; var setLoading = s7[1];
 
   useEffect(function() { loadMembers(); }, []);
 
@@ -139,36 +156,26 @@ export default function App() {
           var all = snapshot.docs.map(function(d) { return d.data(); });
           var results = all.filter(function(r) {
             if (r.cin === form.cin) { return false; }
-            return getRelation(form, r) !== '';
+            return getRelation(form, r, all) !== '';
           }).map(function(r) {
-            return Object.assign({}, r, { relation: getRelation(form, r) });
+            return Object.assign({}, r, { relation: getRelation(form, r, all) });
           });
           setRelatives(results);
           setAllMembers(all);
           setMsgColor('#27ae60');
-          if (results.length > 0) {
-            setMessage('تم الحفظ! وجدنا ' + results.length + ' قريب');
-          } else {
-            setMessage('تم الحفظ! لم نجد أقارب بعد');
-          }
+          setMessage(results.length > 0 ? 'تم الحفظ! وجدنا ' + results.length + ' قريب' : 'تم الحفظ! لم نجد أقارب بعد');
           setLoading(false);
         });
       });
     }).catch(function() {
       setMsgColor('#e74c3c');
-      setMessage('خطأ في الاتصال بقاعدة البيانات');
+      setMessage('خطأ في الاتصال');
       setLoading(false);
     });
   }
 
   function btnStyle(active) {
-    return {
-      padding: '10px 20px', margin: '0 4px',
-      background: active ? '#3498db' : '#ecf0f1',
-      color: active ? 'white' : '#2c3e50',
-      border: 'none', borderRadius: 8, fontSize: 15,
-      cursor: 'pointer', fontWeight: 'bold'
-    };
+    return { padding: '10px 20px', margin: '0 4px', background: active ? '#3498db' : '#ecf0f1', color: active ? 'white' : '#2c3e50', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 'bold' };
   }
 
   return React.createElement('div', { style: { maxWidth: 550, margin: '0 auto', padding: 20, fontFamily: 'Arial', direction: 'rtl' } },
@@ -183,25 +190,14 @@ export default function App() {
         return React.createElement('div', { key: f.key, style: { marginBottom: 12 } },
           React.createElement('label', { style: { display: 'block', marginBottom: 4, fontWeight: 'bold', color: '#2c3e50' } }, f.label),
           f.type === 'select'
-            ? React.createElement('select', {
-                value: form[f.key],
-                onChange: function(e) { setForm(Object.assign({}, form, { [f.key]: e.target.value })); },
-                style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' }
-              },
-              React.createElement('option', { value: '' }, 'اختر...'),
-              f.options.map(function(o) { return React.createElement('option', { key: o, value: o }, o); })
-            )
-            : React.createElement('input', {
-                value: form[f.key],
-                onChange: function(e) { setForm(Object.assign({}, form, { [f.key]: e.target.value })); },
-                style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' }
-              })
+            ? React.createElement('select', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' } },
+                React.createElement('option', { value: '' }, 'اختر...'),
+                f.options.map(function(o) { return React.createElement('option', { key: o, value: o }, o); })
+              )
+            : React.createElement('input', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' } })
         );
       }),
-      React.createElement('button', {
-        onClick: handleSubmit, disabled: loading,
-        style: { width: '100%', padding: 14, background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, cursor: 'pointer', marginTop: 8 }
-      }, loading ? 'جاري الحفظ...' : 'حفظ وبحث عن الأقارب'),
+      React.createElement('button', { onClick: handleSubmit, disabled: loading, style: { width: '100%', padding: 14, background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, cursor: 'pointer', marginTop: 8 } }, loading ? 'جاري الحفظ...' : 'حفظ وبحث عن الأقارب'),
       message && React.createElement('p', { style: { textAlign: 'center', marginTop: 16, fontSize: 16, color: msgColor } }, message),
       relatives.length > 0 && React.createElement('div', { style: { marginTop: 20 } },
         React.createElement('h3', { style: { color: '#2c3e50' } }, 'الأقارب المكتشفون:'),
