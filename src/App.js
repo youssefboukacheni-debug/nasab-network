@@ -31,17 +31,28 @@ const fields = [
 
 const emptyForm = Object.fromEntries(fields.map(f => [f.key, '']));
 
+function getRelationType(me, other) {
+  const sameFather = me.fatherCin && other.fatherCin && me.fatherCin === other.fatherCin;
+  const sameMother = me.motherCin && other.motherCin && me.motherCin === other.motherCin;
+  const sameLastName = me.lastName && other.lastName && me.lastName === other.lastName;
+
+  if (sameFather && sameMother) return '👫 أخ/أخت شقيق';
+  if (sameFather) return '👨‍👧 أخ/أخت من الأب';
+  if (sameMother) return '👩‍👧 أخ/أخت من الأم';
+  if (sameLastName) return '👪 قريب (نفس اللقب)';
+  return '';
+}
+
 export default function App() {
   const [page, setPage] = useState('home');
   const [form, setForm] = useState(emptyForm);
   const [relatives, setRelatives] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [message, setMessage] = useState('');
+  const [msgColor, setMsgColor] = useState('#27ae60');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  useEffect(() => { loadMembers(); }, []);
 
   const loadMembers = async () => {
     const snapshot = await getDocs(collection(db, 'people'));
@@ -49,12 +60,23 @@ export default function App() {
   };
 
   const handleSubmit = async () => {
-    if (!form.fullName || !form.lastName) {
-      setMessage('⚠️ يرجى ملء الاسم الكامل واللقب على الأقل');
+    if (!form.fullName || !form.cin || !form.lastName) {
+      setMsgColor('#e74c3c');
+      setMessage('⚠️ يرجى ملء الاسم الكامل ورقم البطاقة واللقب');
       return;
     }
+
     setLoading(true);
     try {
+      // التحقق من تكرار رقم البطاقة
+      const cinCheck = await getDocs(query(collection(db, 'people'), where('cin', '==', form.cin)));
+      if (!cinCheck.empty) {
+        setMsgColor('#e74c3c');
+        setMessage('❌ رقم البطاقة مسجل مسبقاً!');
+        setLoading(false);
+        return;
+      }
+
       await addDoc(collection(db, 'people'), form);
 
       const snapshot = await getDocs(collection(db, 'people'));
@@ -71,25 +93,23 @@ export default function App() {
 
       setRelatives(results);
       setAllMembers(all);
+      setMsgColor('#27ae60');
       setMessage(results.length > 0
         ? `✅ تم الحفظ! وجدنا ${results.length} قريب`
         : '✅ تم الحفظ! لم نجد أقارب بعد');
     } catch (e) {
+      setMsgColor('#e74c3c');
       setMessage('❌ خطأ في الاتصال بقاعدة البيانات');
     }
     setLoading(false);
   };
 
   const btnStyle = (active) => ({
-    padding: '10px 20px',
-    margin: '0 4px',
+    padding: '10px 20px', margin: '0 4px',
     background: active ? '#3498db' : '#ecf0f1',
     color: active ? 'white' : '#2c3e50',
-    border: 'none',
-    borderRadius: 8,
-    fontSize: 15,
-    cursor: 'pointer',
-    fontWeight: 'bold'
+    border: 'none', borderRadius: 8, fontSize: 15,
+    cursor: 'pointer', fontWeight: 'bold'
   });
 
   return (
@@ -120,22 +140,21 @@ export default function App() {
               />
             </div>
           ))}
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{width: '100%', padding: 14, background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, cursor: 'pointer', marginTop: 8}}
-          >
+
+          <button onClick={handleSubmit} disabled={loading}
+            style={{width: '100%', padding: 14, background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, cursor: 'pointer', marginTop: 8}}>
             {loading ? '⏳ جاري الحفظ...' : '💾 حفظ وبحث عن الأقارب'}
           </button>
 
-          {message && <p style={{textAlign: 'center', marginTop: 16, fontSize: 16, color: '#27ae60'}}>{message}</p>}
+          {message && <p style={{textAlign: 'center', marginTop: 16, fontSize: 16, color: msgColor}}>{message}</p>}
 
           {relatives.length > 0 && (
             <div style={{marginTop: 20}}>
               <h3 style={{color: '#2c3e50'}}>الأقارب المكتشفون:</h3>
               {relatives.map((r, i) => (
-                <div key={i} style={{background: '#ecf0f1', borderRadius: 8, padding: 12, marginBottom: 8}}>
+                <div key={i} style={{background: '#ecf0f1', borderRadius: 8, padding: 12, marginBottom: 8, borderRight: '4px solid #3498db'}}>
                   <strong>{r.fullName}</strong>
+                  <span style={{marginRight: 8, color: '#3498db', fontSize: 13}}>{getRelationType(form, r)}</span>
                   <div style={{color: '#7f8c8d', fontSize: 14}}>اللقب: {r.lastName} | القبيلة: {r.tribe}</div>
                   <div style={{color: '#7f8c8d', fontSize: 14}}>الأب: {r.fatherName} | الأم: {r.motherName}</div>
                 </div>
@@ -147,18 +166,12 @@ export default function App() {
 
       {page === 'members' && (
         <div>
-          <h2 style={{textAlign: 'center', color: '#2c3e50'}}>
-            إجمالي الأعضاء: {allMembers.length}
-          </h2>
+          <h2 style={{textAlign: 'center', color: '#2c3e50'}}>إجمالي الأعضاء: {allMembers.length}</h2>
           {allMembers.map((r, i) => (
             <div key={i} style={{background: '#ecf0f1', borderRadius: 8, padding: 12, marginBottom: 8}}>
               <strong>{i + 1}. {r.fullName}</strong>
-              <div style={{color: '#7f8c8d', fontSize: 14}}>
-                اللقب: {r.lastName} | سنة الازدياد: {r.birthYear}
-              </div>
-              <div style={{color: '#7f8c8d', fontSize: 14}}>
-                الأب: {r.fatherName} | الأم: {r.motherName}
-              </div>
+              <div style={{color: '#7f8c8d', fontSize: 14}}>اللقب: {r.lastName} | سنة الازدياد: {r.birthYear}</div>
+              <div style={{color: '#7f8c8d', fontSize: 14}}>الأب: {r.fatherName} | الأم: {r.motherName}</div>
             </div>
           ))}
         </div>
