@@ -32,6 +32,7 @@ const fields = [
 ];
 
 const emptyForm = Object.fromEntries(fields.map(function(f) { return [f.key, '']; }));
+const genColors = ['#8e44ad','#2980b9','#27ae60','#e67e22','#e74c3c','#16a085'];
 
 function getGeneration(member, all, depth) {
   if (depth > 6) return 0;
@@ -75,9 +76,6 @@ function getRelation(me, other, all) {
   return '';
 }
 
-var genColors = ['#8e44ad', '#2980b9', '#27ae60', '#e67e22', '#e74c3c', '#16a085', '#d35400'];
-var genLabels = ['الجيل الأول', 'الجيل الثاني', 'الجيل الثالث', 'الجيل الرابع', 'الجيل الخامس', 'الجيل السادس', 'الجيل السابع'];
-
 export default function App() {
   var s1 = useState('members'); var page = s1[0]; var setPage = s1[1];
   var s2 = useState(emptyForm); var form = s2[0]; var setForm = s2[1];
@@ -120,42 +118,49 @@ export default function App() {
     return { padding: '9px 16px', margin: '0 3px', background: active ? '#2c3e50' : '#ecf0f1', color: active ? 'white' : '#2c3e50', border: 'none', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 'bold' };
   }
 
-  function MemberCard(props) {
-    var r = props.member;
-    var gen = getGeneration(r, allMembers, 0);
-    var color = genColors[gen % genColors.length];
-    return React.createElement('div', {
-      onClick: function() { setSelected(r); },
-      style: { background: 'white', borderRadius: 10, padding: 14, marginBottom: 10, borderRight: '5px solid ' + color, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'transform 0.1s' }
-    },
-      React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        React.createElement('strong', { style: { fontSize: 16, color: '#2c3e50' } }, r.fullName),
-        React.createElement('span', { style: { background: color, color: 'white', borderRadius: 12, padding: '2px 10px', fontSize: 12 } }, genLabels[gen] || 'جيل')
-      ),
-      React.createElement('div', { style: { color: '#7f8c8d', fontSize: 13, marginTop: 4 } },
-        (r.gender || '') + ' | ' + (r.birthYear || '') + ' | ' + (r.tribe || '') 
-      ),
-      React.createElement('div', { style: { color: '#95a5a6', fontSize: 12, marginTop: 2 } },
-        'الأب: ' + (r.fatherName || '—') + ' | الأم: ' + (r.motherName || '—')
-      )
-    );
-  }
-
-  function TreeNode(props) {
-    var member = props.member;
+  function CoupleNode(props) {
+    var father = props.father;
+    var mother = props.mother;
     var depth = props.depth || 0;
-    var children = allMembers.filter(function(m) { return m.fatherCin === member.cin || m.motherCin === member.cin; });
-    var gen = depth;
-    var color = genColors[gen % genColors.length];
-    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 8px' } },
-      React.createElement('div', {
-        onClick: function() { setSelected(member); },
-        style: { background: color, color: 'white', borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }
-      }, member.fullName + ' (' + (member.birthYear || '?') + ')'),
-      children.length > 0 && React.createElement('div', { style: { width: 2, height: 20, background: '#bdc3c7' } }),
-      children.length > 0 && React.createElement('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start' } },
+    var color = genColors[depth % genColors.length];
+
+    var children = allMembers.filter(function(m) {
+      var hasFather = father && m.fatherCin === father.cin;
+      var hasMother = mother && m.motherCin === mother.cin;
+      return hasFather || hasMother;
+    });
+    var seen = {};
+    children = children.filter(function(c) { if (seen[c.cin]) return false; seen[c.cin] = true; return true; });
+
+    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 10px' } },
+      React.createElement('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'center' } },
+        father && React.createElement('div', {
+          onClick: function() { setSelected(father); },
+          style: { background: color, color: 'white', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }
+        }, (father.fullName || '') + '\n(' + (father.birthYear || '?') + ')'),
+        father && mother && React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 4px' } },
+          React.createElement('span', { style: { fontSize: 16 } }, '💑'),
+          React.createElement('div', { style: { width: 30, height: 2, background: '#e74c3c' } })
+        ),
+        mother && React.createElement('div', {
+          onClick: function() { setSelected(mother); },
+          style: { background: '#c0392b', color: 'white', borderRadius: 10, padding: '8px 10px', fontSize: 12, fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }
+        }, (mother.fullName || '') + '\n(' + (mother.birthYear || '?') + ')')
+      ),
+      children.length > 0 && React.createElement('div', { style: { width: 2, height: 24, background: '#95a5a6' } }),
+      children.length > 0 && React.createElement('div', { style: { position: 'relative', display: 'flex', flexDirection: 'row', alignItems: 'flex-start' } },
+        children.length > 1 && React.createElement('div', { style: { position: 'absolute', top: 0, right: '10%', left: '10%', height: 2, background: '#95a5a6' } }),
         children.map(function(child) {
-          return React.createElement(TreeNode, { key: child.cin, member: child, depth: depth + 1 });
+          var spouse = allMembers.find(function(m) { return m.cin === child.spouseCin; });
+          var isMale = child.gender === 'ذكر';
+          return React.createElement('div', { key: child.cin, style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } },
+            React.createElement('div', { style: { width: 2, height: 20, background: '#95a5a6' } }),
+            React.createElement(CoupleNode, {
+              father: isMale ? child : spouse,
+              mother: isMale ? spouse : child,
+              depth: depth + 1
+            })
+          );
         })
       )
     );
@@ -168,38 +173,36 @@ export default function App() {
     var gen = getGeneration(selected, allMembers, 0);
     var color = genColors[gen % genColors.length];
     return React.createElement('div', {
-      style: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+      style: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
       onClick: function(e) { if (e.target === e.currentTarget) setSelected(null); }
     },
       React.createElement('div', { style: { background: 'white', borderRadius: 16, padding: 20, width: '100%', maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', direction: 'rtl' } },
         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 } },
-          React.createElement('h2', { style: { color: color, margin: 0 } }, selected.fullName),
-          React.createElement('button', { onClick: function() { setSelected(null); }, style: { background: '#ecf0f1', border: 'none', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 16 } }, 'x')
+          React.createElement('h2', { style: { color: color, margin: 0, fontSize: 20 } }, selected.fullName),
+          React.createElement('button', { onClick: function() { setSelected(null); }, style: { background: '#ecf0f1', border: 'none', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 18 } }, 'x')
         ),
-        React.createElement('div', { style: { background: '#f8f9fa', borderRadius: 10, padding: 12, marginBottom: 16 } },
-          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } },
-            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'الجنس'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.gender || '—')),
-            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'سنة الازدياد'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.birthYear || '—')),
-            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'القبيلة'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.tribe || '—')),
-            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'الأصل'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.origin || '—'))
-          )
+        React.createElement('div', { style: { background: '#f8f9fa', borderRadius: 10, padding: 12, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } },
+          ['gender:الجنس', 'birthYear:سنة الازدياد', 'tribe:القبيلة', 'origin:الأصل', 'lastName:اللقب'].map(function(item) {
+            var parts = item.split(':');
+            return React.createElement('div', { key: parts[0] },
+              React.createElement('div', { style: { color: '#7f8c8d', fontSize: 11 } }, parts[1]),
+              React.createElement('div', { style: { fontWeight: 'bold', fontSize: 14 } }, selected[parts[0]] || '—')
+            );
+          })
         ),
         rels.length > 0 && React.createElement('div', null,
           React.createElement('h3', { style: { color: '#2c3e50', marginBottom: 10 } }, 'العلاقات العائلية'),
           rels.map(function(r, i) {
             var rColor = genColors[getGeneration(r, allMembers, 0) % genColors.length];
             return React.createElement('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8f9fa', borderRadius: 8, marginBottom: 6 } },
-              React.createElement('span', { style: { fontWeight: 'bold', color: '#2c3e50' } }, r.fullName),
+              React.createElement('span', { style: { fontWeight: 'bold' } }, r.fullName),
               React.createElement('span', { style: { background: rColor, color: 'white', borderRadius: 10, padding: '2px 10px', fontSize: 12 } }, r.relation)
             );
           })
-        ),
-        rels.length === 0 && React.createElement('p', { style: { color: '#7f8c8d', textAlign: 'center' } }, 'لا توجد علاقات مكتشفة بعد')
+        )
       )
     );
   }
-
-  var roots = allMembers.filter(function(m) { return !allMembers.find(function(p) { return p.cin === m.fatherCin; }); });
 
   return React.createElement('div', { style: { maxWidth: 600, margin: '0 auto', padding: 16, fontFamily: 'Arial', direction: 'rtl', background: '#f0f4f8', minHeight: '100vh' } },
     React.createElement('div', { style: { background: 'linear-gradient(135deg, #2c3e50, #3498db)', borderRadius: 16, padding: '20px 16px', marginBottom: 20, textAlign: 'center' } },
@@ -213,13 +216,38 @@ export default function App() {
     ),
 
     page === 'members' && React.createElement('div', null,
-      allMembers.length === 0 && React.createElement('p', { style: { textAlign: 'center', color: '#7f8c8d' } }, 'لا يوجد أعضاء بعد'),
-      allMembers.map(function(r, i) { return React.createElement(MemberCard, { key: i, member: r }); })
+      allMembers.map(function(r, i) {
+        var gen = getGeneration(r, allMembers, 0);
+        var color = genColors[gen % genColors.length];
+        return React.createElement('div', { key: i, onClick: function() { setSelected(r); }, style: { background: 'white', borderRadius: 10, padding: 14, marginBottom: 10, borderRight: '5px solid ' + color, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', cursor: 'pointer' } },
+          React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+            React.createElement('strong', { style: { fontSize: 16, color: '#2c3e50' } }, r.fullName),
+            React.createElement('span', { style: { background: color, color: 'white', borderRadius: 12, padding: '2px 10px', fontSize: 12 } }, 'الجيل ' + (gen + 1))
+          ),
+          React.createElement('div', { style: { color: '#7f8c8d', fontSize: 13, marginTop: 4 } }, (r.gender || '') + ' | ' + (r.birthYear || '') + ' | ' + (r.tribe || '')),
+          React.createElement('div', { style: { color: '#95a5a6', fontSize: 12, marginTop: 2 } }, 'الأب: ' + (r.fatherName || '—') + ' | الأم: ' + (r.motherName || '—'))
+        );
+      })
     ),
 
-    page === 'tree' && React.createElement('div', { style: { overflowX: 'auto', padding: 10 } },
-      React.createElement('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start', minWidth: 'max-content' } },
-        roots.map(function(root) { return React.createElement(TreeNode, { key: root.cin, member: root, depth: 0 }); })
+    page === 'tree' && React.createElement('div', { style: { overflowX: 'auto', overflowY: 'auto', padding: 16 } },
+      React.createElement('div', { style: { display: 'flex', flexDirection: 'row', minWidth: 'max-content', justifyContent: 'center', paddingBottom: 20 } },
+        (function() {
+          var rootMales = allMembers.filter(function(m) {
+            return m.gender === 'ذكر' && !allMembers.find(function(p) { return p.cin === m.fatherCin; });
+          });
+          var rootFemalesAlone = allMembers.filter(function(m) {
+            return m.gender === 'أنثى' && !allMembers.find(function(p) { return p.cin === m.fatherCin; }) && !allMembers.find(function(p) { return p.spouseCin === m.cin; });
+          });
+          var nodes = rootMales.map(function(male) {
+            var female = allMembers.find(function(m) { return m.cin === male.spouseCin; });
+            return React.createElement(CoupleNode, { key: male.cin, father: male, mother: female, depth: 0 });
+          });
+          rootFemalesAlone.forEach(function(female) {
+            nodes.push(React.createElement(CoupleNode, { key: female.cin, father: null, mother: female, depth: 0 }));
+          });
+          return nodes;
+        })()
       )
     ),
 
