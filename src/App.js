@@ -33,101 +33,60 @@ const fields = [
 
 const emptyForm = Object.fromEntries(fields.map(function(f) { return [f.key, '']; }));
 
-function getRelation(me, other, allMembers) {
+function getGeneration(member, all, depth) {
+  if (depth > 6) return 0;
+  var father = all.find(function(m) { return m.cin === member.fatherCin; });
+  if (father) return getGeneration(father, all, depth + 1) + 1;
+  return 0;
+}
+
+function getRelation(me, other, all) {
   var male = other.gender === 'ذكر';
-
-  // أب / أم مباشر
-  if (me.fatherCin && me.fatherCin === other.cin) { return male ? 'أب' : 'أم'; }
-  if (me.motherCin && me.motherCin === other.cin) { return male ? 'أب' : 'أم'; }
-
-  // ابن / ابنة مباشر
-  if (other.fatherCin && other.fatherCin === me.cin) { return male ? 'ابن' : 'ابنة'; }
-  if (other.motherCin && other.motherCin === me.cin) { return male ? 'ابن' : 'ابنة'; }
-
-  // زوج / زوجة
-  if (me.spouseCin && me.spouseCin === other.cin) { return male ? 'زوج' : 'زوجة'; }
-  if (other.spouseCin && other.spouseCin === me.cin) { return male ? 'زوج' : 'زوجة'; }
-
-  // أخ / أخت
-  var sameFather = me.fatherCin && other.fatherCin && me.fatherCin === other.fatherCin;
-  var sameMother = me.motherCin && other.motherCin && me.motherCin === other.motherCin;
-  if (sameFather && sameMother) { return male ? 'أخ شقيق' : 'أخت شقيقة'; }
-  if (sameFather) { return male ? 'أخ من الأب' : 'أخت من الأب'; }
-  if (sameMother) { return male ? 'أخ من الأم' : 'أخت من الأم'; }
-
-  // جد / جدة (من بيانات الأب المسجل)
-  var myFather = allMembers.find(function(m) { return m.cin === me.fatherCin; });
-  var myMother = allMembers.find(function(m) { return m.cin === me.motherCin; });
-
-  if (myFather) {
-    if (myFather.fatherCin && myFather.fatherCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
-    if (myFather.motherCin && myFather.motherCin === other.cin) { return male ? 'جد من الأب' : 'جدة من الأب'; }
+  if (me.fatherCin && me.fatherCin === other.cin) return male ? 'أب' : 'أم';
+  if (me.motherCin && me.motherCin === other.cin) return male ? 'أب' : 'أم';
+  if (other.fatherCin && other.fatherCin === me.cin) return male ? 'ابن' : 'ابنة';
+  if (other.motherCin && other.motherCin === me.cin) return male ? 'ابن' : 'ابنة';
+  if (me.spouseCin && me.spouseCin === other.cin) return male ? 'زوج' : 'زوجة';
+  if (other.spouseCin && other.spouseCin === me.cin) return male ? 'زوج' : 'زوجة';
+  var sf = me.fatherCin && other.fatherCin && me.fatherCin === other.fatherCin;
+  var sm = me.motherCin && other.motherCin && me.motherCin === other.motherCin;
+  if (sf && sm) return male ? 'أخ شقيق' : 'أخت شقيقة';
+  if (sf) return male ? 'أخ من الأب' : 'أخت من الأب';
+  if (sm) return male ? 'أخ من الأم' : 'أخت من الأم';
+  var myF = all.find(function(m) { return m.cin === me.fatherCin; });
+  var myM = all.find(function(m) { return m.cin === me.motherCin; });
+  if (myF) {
+    if (myF.fatherCin && myF.fatherCin === other.cin) return male ? 'جد من الأب' : 'جدة من الأب';
+    if (myF.motherCin && myF.motherCin === other.cin) return male ? 'جد من الأب' : 'جدة من الأب';
   }
-  if (myMother) {
-    if (myMother.fatherCin && myMother.fatherCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
-    if (myMother.motherCin && myMother.motherCin === other.cin) { return male ? 'جد من الأم' : 'جدة من الأم'; }
+  if (myM) {
+    if (myM.fatherCin && myM.fatherCin === other.cin) return male ? 'جد من الأم' : 'جدة من الأم';
+    if (myM.motherCin && myM.motherCin === other.cin) return male ? 'جد من الأم' : 'جدة من الأم';
   }
-
-  // حفيد / حفيدة
-  var otherFather = allMembers.find(function(m) { return m.cin === other.fatherCin; });
-  var otherMother = allMembers.find(function(m) { return m.cin === other.motherCin; });
-  if (otherFather) {
-    if (otherFather.fatherCin === me.cin || otherFather.motherCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-  }
-  if (otherMother) {
-    if (otherMother.fatherCin === me.cin || otherMother.motherCin === me.cin) { return male ? 'حفيد' : 'حفيدة'; }
-  }
-
-  // عم / عمة (أخ الأب)
-  if (myFather && other.fatherCin && myFather.fatherCin && other.fatherCin === myFather.fatherCin && other.cin !== me.fatherCin) {
-    return male ? 'عم' : 'عمة';
-  }
-
-  // خال / خالة (أخ الأم)
-  if (myMother && other.fatherCin && myMother.fatherCin && other.fatherCin === myMother.fatherCin && other.cin !== me.motherCin) {
-    return male ? 'خال' : 'خالة';
-  }
-
-  // ابن/ابنة عم أو عمة
-  if (myFather && other.fatherCin) {
-    var otherParent = allMembers.find(function(m) { return m.cin === other.fatherCin || m.cin === other.motherCin; });
-    if (otherParent && myFather.fatherCin && otherParent.fatherCin === myFather.fatherCin && otherParent.cin !== me.fatherCin) {
-      return male ? 'ابن عم' : 'ابنة عم';
-    }
-  }
-
-  // ابن/ابنة خال أو خالة
-  if (myMother && other.motherCin) {
-    var otherParent2 = allMembers.find(function(m) { return m.cin === other.fatherCin || m.cin === other.motherCin; });
-    if (otherParent2 && myMother.fatherCin && otherParent2.fatherCin === myMother.fatherCin && otherParent2.cin !== me.motherCin) {
-      return male ? 'ابن خال' : 'ابنة خال';
-    }
-  }
-
-  // أخ/أخت الزوج أو الزوجة
-  if (me.spouseCin) {
-    var spouse = allMembers.find(function(m) { return m.cin === me.spouseCin; });
-    if (spouse) {
-      var spouseSameFather = spouse.fatherCin && other.fatherCin && spouse.fatherCin === other.fatherCin;
-      var spouseSameMother = spouse.motherCin && other.motherCin && spouse.motherCin === other.motherCin;
-      if (spouseSameFather || spouseSameMother) { return male ? 'أخ الزوج/الزوجة' : 'أخت الزوج/الزوجة'; }
-    }
-  }
-
-  // نفس اللقب
-  if (me.lastName && other.lastName && me.lastName === other.lastName) { return 'قريب'; }
-
+  var oF = all.find(function(m) { return m.cin === other.fatherCin; });
+  var oM = all.find(function(m) { return m.cin === other.motherCin; });
+  if (oF && (oF.fatherCin === me.cin || oF.motherCin === me.cin)) return male ? 'حفيد' : 'حفيدة';
+  if (oM && (oM.fatherCin === me.cin || oM.motherCin === me.cin)) return male ? 'حفيد' : 'حفيدة';
+  if (myF && other.fatherCin && myF.fatherCin && other.fatherCin === myF.fatherCin && other.cin !== me.fatherCin) return male ? 'عم' : 'عمة';
+  if (myM && other.fatherCin && myM.fatherCin && other.fatherCin === myM.fatherCin && other.cin !== me.motherCin) return male ? 'خال' : 'خالة';
+  if (myF && oF && myF.fatherCin && oF.fatherCin === myF.fatherCin && oF.cin !== me.fatherCin) return male ? 'ابن عم' : 'ابنة عم';
+  if (myM && oM && myM.fatherCin && oM.fatherCin === myM.fatherCin && oM.cin !== me.motherCin) return male ? 'ابن خال' : 'ابنة خال';
+  if (me.lastName && other.lastName && me.lastName === other.lastName) return 'قريب';
   return '';
 }
 
+var genColors = ['#8e44ad', '#2980b9', '#27ae60', '#e67e22', '#e74c3c', '#16a085', '#d35400'];
+var genLabels = ['الجيل الأول', 'الجيل الثاني', 'الجيل الثالث', 'الجيل الرابع', 'الجيل الخامس', 'الجيل السادس', 'الجيل السابع'];
+
 export default function App() {
-  var s1 = useState('home'); var page = s1[0]; var setPage = s1[1];
+  var s1 = useState('members'); var page = s1[0]; var setPage = s1[1];
   var s2 = useState(emptyForm); var form = s2[0]; var setForm = s2[1];
   var s3 = useState([]); var relatives = s3[0]; var setRelatives = s3[1];
   var s4 = useState([]); var allMembers = s4[0]; var setAllMembers = s4[1];
   var s5 = useState(''); var message = s5[0]; var setMessage = s5[1];
   var s6 = useState('#27ae60'); var msgColor = s6[0]; var setMsgColor = s6[1];
   var s7 = useState(false); var loading = s7[0]; var setLoading = s7[1];
+  var s8 = useState(null); var selected = s8[0]; var setSelected = s8[1];
 
   useEffect(function() { loadMembers(); }, []);
 
@@ -139,90 +98,158 @@ export default function App() {
 
   function handleSubmit() {
     if (!form.fullName || !form.cin || !form.lastName) {
-      setMsgColor('#e74c3c');
-      setMessage('يرجى ملء الاسم الكامل ورقم البطاقة واللقب');
-      return;
+      setMsgColor('#e74c3c'); setMessage('يرجى ملء الاسم الكامل ورقم البطاقة واللقب'); return;
     }
     setLoading(true);
     getDocs(query(collection(db, 'people'), where('cin', '==', form.cin))).then(function(cinCheck) {
-      if (!cinCheck.empty) {
-        setMsgColor('#e74c3c');
-        setMessage('رقم البطاقة مسجل مسبقاً');
-        setLoading(false);
-        return;
-      }
+      if (!cinCheck.empty) { setMsgColor('#e74c3c'); setMessage('رقم البطاقة مسجل مسبقاً'); setLoading(false); return; }
       addDoc(collection(db, 'people'), form).then(function() {
         getDocs(collection(db, 'people')).then(function(snapshot) {
           var all = snapshot.docs.map(function(d) { return d.data(); });
-          var results = all.filter(function(r) {
-            if (r.cin === form.cin) { return false; }
-            return getRelation(form, r, all) !== '';
-          }).map(function(r) {
-            return Object.assign({}, r, { relation: getRelation(form, r, all) });
-          });
-          setRelatives(results);
-          setAllMembers(all);
-          setMsgColor('#27ae60');
+          var results = all.filter(function(r) { return r.cin !== form.cin && getRelation(form, r, all) !== ''; })
+            .map(function(r) { return Object.assign({}, r, { relation: getRelation(form, r, all) }); });
+          setRelatives(results); setAllMembers(all); setMsgColor('#27ae60');
           setMessage(results.length > 0 ? 'تم الحفظ! وجدنا ' + results.length + ' قريب' : 'تم الحفظ! لم نجد أقارب بعد');
-          setLoading(false);
+          setLoading(false); setPage('members');
         });
       });
-    }).catch(function() {
-      setMsgColor('#e74c3c');
-      setMessage('خطأ في الاتصال');
-      setLoading(false);
-    });
+    }).catch(function() { setMsgColor('#e74c3c'); setMessage('خطأ في الاتصال'); setLoading(false); });
   }
 
   function btnStyle(active) {
-    return { padding: '10px 20px', margin: '0 4px', background: active ? '#3498db' : '#ecf0f1', color: active ? 'white' : '#2c3e50', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 'bold' };
+    return { padding: '9px 16px', margin: '0 3px', background: active ? '#2c3e50' : '#ecf0f1', color: active ? 'white' : '#2c3e50', border: 'none', borderRadius: 8, fontSize: 14, cursor: 'pointer', fontWeight: 'bold' };
   }
 
-  return React.createElement('div', { style: { maxWidth: 550, margin: '0 auto', padding: 20, fontFamily: 'Arial', direction: 'rtl' } },
-    React.createElement('h1', { style: { textAlign: 'center', color: '#2c3e50', borderBottom: '3px solid #3498db', paddingBottom: 12 } }, 'شبكة النسب'),
-    React.createElement('div', { style: { textAlign: 'center', marginBottom: 24 } },
-      React.createElement('button', { style: btnStyle(page === 'home'), onClick: function() { setPage('home'); } }, 'تسجيل'),
-      React.createElement('button', { style: btnStyle(page === 'members'), onClick: function() { setPage('members'); loadMembers(); } }, 'الأعضاء (' + allMembers.length + ')')
+  function MemberCard(props) {
+    var r = props.member;
+    var gen = getGeneration(r, allMembers, 0);
+    var color = genColors[gen % genColors.length];
+    return React.createElement('div', {
+      onClick: function() { setSelected(r); },
+      style: { background: 'white', borderRadius: 10, padding: 14, marginBottom: 10, borderRight: '5px solid ' + color, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'transform 0.1s' }
+    },
+      React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+        React.createElement('strong', { style: { fontSize: 16, color: '#2c3e50' } }, r.fullName),
+        React.createElement('span', { style: { background: color, color: 'white', borderRadius: 12, padding: '2px 10px', fontSize: 12 } }, genLabels[gen] || 'جيل')
+      ),
+      React.createElement('div', { style: { color: '#7f8c8d', fontSize: 13, marginTop: 4 } },
+        (r.gender || '') + ' | ' + (r.birthYear || '') + ' | ' + (r.tribe || '') 
+      ),
+      React.createElement('div', { style: { color: '#95a5a6', fontSize: 12, marginTop: 2 } },
+        'الأب: ' + (r.fatherName || '—') + ' | الأم: ' + (r.motherName || '—')
+      )
+    );
+  }
+
+  function TreeNode(props) {
+    var member = props.member;
+    var depth = props.depth || 0;
+    var children = allMembers.filter(function(m) { return m.fatherCin === member.cin || m.motherCin === member.cin; });
+    var gen = depth;
+    var color = genColors[gen % genColors.length];
+    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 8px' } },
+      React.createElement('div', {
+        onClick: function() { setSelected(member); },
+        style: { background: color, color: 'white', borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }
+      }, member.fullName + ' (' + (member.birthYear || '?') + ')'),
+      children.length > 0 && React.createElement('div', { style: { width: 2, height: 20, background: '#bdc3c7' } }),
+      children.length > 0 && React.createElement('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start' } },
+        children.map(function(child) {
+          return React.createElement(TreeNode, { key: child.cin, member: child, depth: depth + 1 });
+        })
+      )
+    );
+  }
+
+  function ProfileModal() {
+    if (!selected) return null;
+    var rels = allMembers.filter(function(r) { return r.cin !== selected.cin && getRelation(selected, r, allMembers) !== ''; })
+      .map(function(r) { return Object.assign({}, r, { relation: getRelation(selected, r, allMembers) }); });
+    var gen = getGeneration(selected, allMembers, 0);
+    var color = genColors[gen % genColors.length];
+    return React.createElement('div', {
+      style: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+      onClick: function(e) { if (e.target === e.currentTarget) setSelected(null); }
+    },
+      React.createElement('div', { style: { background: 'white', borderRadius: 16, padding: 20, width: '100%', maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', direction: 'rtl' } },
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 } },
+          React.createElement('h2', { style: { color: color, margin: 0 } }, selected.fullName),
+          React.createElement('button', { onClick: function() { setSelected(null); }, style: { background: '#ecf0f1', border: 'none', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 16 } }, 'x')
+        ),
+        React.createElement('div', { style: { background: '#f8f9fa', borderRadius: 10, padding: 12, marginBottom: 16 } },
+          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } },
+            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'الجنس'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.gender || '—')),
+            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'سنة الازدياد'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.birthYear || '—')),
+            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'القبيلة'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.tribe || '—')),
+            React.createElement('div', null, React.createElement('span', { style: { color: '#7f8c8d', fontSize: 12 } }, 'الأصل'), React.createElement('div', { style: { fontWeight: 'bold' } }, selected.origin || '—'))
+          )
+        ),
+        rels.length > 0 && React.createElement('div', null,
+          React.createElement('h3', { style: { color: '#2c3e50', marginBottom: 10 } }, 'العلاقات العائلية'),
+          rels.map(function(r, i) {
+            var rColor = genColors[getGeneration(r, allMembers, 0) % genColors.length];
+            return React.createElement('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8f9fa', borderRadius: 8, marginBottom: 6 } },
+              React.createElement('span', { style: { fontWeight: 'bold', color: '#2c3e50' } }, r.fullName),
+              React.createElement('span', { style: { background: rColor, color: 'white', borderRadius: 10, padding: '2px 10px', fontSize: 12 } }, r.relation)
+            );
+          })
+        ),
+        rels.length === 0 && React.createElement('p', { style: { color: '#7f8c8d', textAlign: 'center' } }, 'لا توجد علاقات مكتشفة بعد')
+      )
+    );
+  }
+
+  var roots = allMembers.filter(function(m) { return !allMembers.find(function(p) { return p.cin === m.fatherCin; }); });
+
+  return React.createElement('div', { style: { maxWidth: 600, margin: '0 auto', padding: 16, fontFamily: 'Arial', direction: 'rtl', background: '#f0f4f8', minHeight: '100vh' } },
+    React.createElement('div', { style: { background: 'linear-gradient(135deg, #2c3e50, #3498db)', borderRadius: 16, padding: '20px 16px', marginBottom: 20, textAlign: 'center' } },
+      React.createElement('h1', { style: { color: 'white', margin: 0, fontSize: 24 } }, 'شبكة النسب 🌳'),
+      React.createElement('p', { style: { color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' } }, 'اجمالي الأعضاء: ' + allMembers.length)
     ),
-    page === 'home' && React.createElement('div', null,
-      React.createElement('p', { style: { textAlign: 'center', color: '#7f8c8d' } }, 'سجل بياناتك واكتشف أقاربك'),
+    React.createElement('div', { style: { display: 'flex', justifyContent: 'center', marginBottom: 20, background: 'white', borderRadius: 10, padding: 6 } },
+      React.createElement('button', { style: btnStyle(page === 'members'), onClick: function() { setPage('members'); loadMembers(); } }, 'الأعضاء'),
+      React.createElement('button', { style: btnStyle(page === 'tree'), onClick: function() { setPage('tree'); loadMembers(); } }, 'شجرة العائلة'),
+      React.createElement('button', { style: btnStyle(page === 'register'), onClick: function() { setPage('register'); } }, 'تسجيل')
+    ),
+
+    page === 'members' && React.createElement('div', null,
+      allMembers.length === 0 && React.createElement('p', { style: { textAlign: 'center', color: '#7f8c8d' } }, 'لا يوجد أعضاء بعد'),
+      allMembers.map(function(r, i) { return React.createElement(MemberCard, { key: i, member: r }); })
+    ),
+
+    page === 'tree' && React.createElement('div', { style: { overflowX: 'auto', padding: 10 } },
+      React.createElement('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start', minWidth: 'max-content' } },
+        roots.map(function(root) { return React.createElement(TreeNode, { key: root.cin, member: root, depth: 0 }); })
+      )
+    ),
+
+    page === 'register' && React.createElement('div', { style: { background: 'white', borderRadius: 16, padding: 20 } },
+      React.createElement('h2', { style: { color: '#2c3e50', textAlign: 'center', marginBottom: 20 } }, 'تسجيل عضو جديد'),
       fields.map(function(f) {
-        return React.createElement('div', { key: f.key, style: { marginBottom: 12 } },
-          React.createElement('label', { style: { display: 'block', marginBottom: 4, fontWeight: 'bold', color: '#2c3e50' } }, f.label),
+        return React.createElement('div', { key: f.key, style: { marginBottom: 14 } },
+          React.createElement('label', { style: { display: 'block', marginBottom: 4, fontWeight: 'bold', color: '#2c3e50', fontSize: 14 } }, f.label),
           f.type === 'select'
-            ? React.createElement('select', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' } },
+            ? React.createElement('select', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ddd', fontSize: 15 } },
                 React.createElement('option', { value: '' }, 'اختر...'),
                 f.options.map(function(o) { return React.createElement('option', { key: o, value: o }, o); })
               )
-            : React.createElement('input', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #bdc3c7', fontSize: 16, boxSizing: 'border-box' } })
+            : React.createElement('input', { value: form[f.key], onChange: function(e) { var v = e.target.value; setForm(function(prev) { return Object.assign({}, prev, { [f.key]: v }); }); }, style: { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ddd', fontSize: 15, boxSizing: 'border-box' } })
         );
       }),
-      React.createElement('button', { onClick: handleSubmit, disabled: loading, style: { width: '100%', padding: 14, background: '#3498db', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, cursor: 'pointer', marginTop: 8 } }, loading ? 'جاري الحفظ...' : 'حفظ وبحث عن الأقارب'),
-      message && React.createElement('p', { style: { textAlign: 'center', marginTop: 16, fontSize: 16, color: msgColor } }, message),
-      relatives.length > 0 && React.createElement('div', { style: { marginTop: 20 } },
+      React.createElement('button', { onClick: handleSubmit, disabled: loading, style: { width: '100%', padding: 14, background: 'linear-gradient(135deg, #2c3e50, #3498db)', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, cursor: 'pointer', marginTop: 8 } }, loading ? 'جاري الحفظ...' : 'حفظ وبحث عن الأقارب'),
+      message && React.createElement('p', { style: { textAlign: 'center', marginTop: 12, color: msgColor, fontWeight: 'bold' } }, message),
+      relatives.length > 0 && React.createElement('div', { style: { marginTop: 16 } },
         React.createElement('h3', { style: { color: '#2c3e50' } }, 'الأقارب المكتشفون:'),
         relatives.map(function(r, i) {
-          return React.createElement('div', { key: i, style: { background: '#ecf0f1', borderRadius: 8, padding: 12, marginBottom: 8, borderRight: '4px solid #3498db' } },
-            React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between' } },
-              React.createElement('strong', null, r.fullName),
-              React.createElement('span', { style: { background: '#3498db', color: 'white', borderRadius: 6, padding: '2px 8px', fontSize: 13 } }, r.relation)
-            ),
-            React.createElement('div', { style: { color: '#7f8c8d', fontSize: 14, marginTop: 4 } }, 'اللقب: ' + r.lastName + ' | القبيلة: ' + r.tribe),
-            React.createElement('div', { style: { color: '#7f8c8d', fontSize: 14 } }, 'الأب: ' + r.fatherName + ' | الأم: ' + r.motherName)
+          var color = genColors[getGeneration(r, allMembers, 0) % genColors.length];
+          return React.createElement('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8f9fa', borderRadius: 8, marginBottom: 6, borderRight: '4px solid ' + color } },
+            React.createElement('span', { style: { fontWeight: 'bold' } }, r.fullName),
+            React.createElement('span', { style: { background: color, color: 'white', borderRadius: 10, padding: '2px 10px', fontSize: 12 } }, r.relation)
           );
         })
       )
     ),
-    page === 'members' && React.createElement('div', null,
-      React.createElement('h2', { style: { textAlign: 'center', color: '#2c3e50' } }, 'اجمالي الأعضاء: ' + allMembers.length),
-      allMembers.map(function(r, i) {
-        return React.createElement('div', { key: i, style: { background: '#ecf0f1', borderRadius: 8, padding: 12, marginBottom: 8 } },
-          React.createElement('strong', null, (i + 1) + '. ' + r.fullName),
-          React.createElement('span', { style: { marginRight: 8, fontSize: 13, color: '#7f8c8d' } }, r.gender),
-          React.createElement('div', { style: { color: '#7f8c8d', fontSize: 14 } }, 'اللقب: ' + r.lastName + ' | سنة الازدياد: ' + r.birthYear),
-          React.createElement('div', { style: { color: '#7f8c8d', fontSize: 14 } }, 'الأب: ' + r.fatherName + ' | الأم: ' + r.motherName)
-        );
-      })
-    )
+
+    React.createElement(ProfileModal, null)
   );
 }
