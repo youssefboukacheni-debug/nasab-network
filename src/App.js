@@ -34,11 +34,14 @@ const fields = [
 const emptyForm = Object.fromEntries(fields.map(function(f) { return [f.key, '']; }));
 const genColors = ['#8e44ad','#2980b9','#27ae60','#e67e22','#e74c3c','#16a085'];
 
-function getGeneration(member, all, depth) {
-  if (depth > 6) return 0;
-  var father = all.find(function(m) { return m.cin === member.fatherCin; });
-  if (father) return getGeneration(father, all, depth + 1) + 1;
-  return 0;
+function getGeneration(member) {
+  var year = parseInt(member.birthYear);
+  if (!year) return 0;
+  if (year < 1950) return 0;
+  if (year <= 1980) return 1;
+  if (year <= 1999) return 2;
+  if (year <= 2030) return 3;
+  return 4;
 }
 
 function getRelation(me, other, all) {
