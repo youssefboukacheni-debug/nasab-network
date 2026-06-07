@@ -125,8 +125,7 @@ export default function App() {
     var father = props.father;
     var mother = props.mother;
     var depth = props.depth || 0;
-    var color = genColors[depth % genColors.length];
-
+    var color = genColors[getGeneration(father || mother) % genColors.length];
     var children = allMembers.filter(function(m) {
       var hasFather = father && m.fatherCin === father.cin;
       var hasMother = mother && m.motherCin === mother.cin;
