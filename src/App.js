@@ -129,7 +129,11 @@ export default function App() {
     var children = allMembers.filter(function(m) {
       var hasFather = father && m.fatherCin === father.cin;
       var hasMother = mother && m.motherCin === mother.cin;
-      return hasFather || hasMother;
+      if (!hasFather && !hasMother) return false;
+      // لا تعرض الابن إذا كان زوجه/زوجته مسجلة (سيظهر كزوج في مستوى أعمق)
+      var childSpouse = allMembers.find(function(s) { return s.cin === m.spouseCin; });
+      if (childSpouse && m.gender === 'أنثى') return false;
+      return true;
     });
     var seen = {};
     children = children.filter(function(c) { if (seen[c.cin]) return false; seen[c.cin] = true; return true; });
