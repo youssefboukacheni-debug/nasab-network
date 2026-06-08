@@ -239,7 +239,11 @@ export default function App() {
             return m.gender === 'ذكر' && !allMembers.find(function(p) { return p.cin === m.fatherCin; });
           });
           var rootFemalesAlone = allMembers.filter(function(m) {
-            return m.gender === 'أنثى' && !allMembers.find(function(p) { return p.cin === m.fatherCin; }) && !allMembers.find(function(p) { return p.spouseCin === m.cin; });
+            if (m.gender !== 'أنثى') return false;
+            var fatherRegistered = allMembers.find(function(p) { return p.cin === m.fatherCin; });
+            var spouseRegistered = allMembers.find(function(p) { return p.cin === m.spouseCin; });
+            var husbandHasHerAsMother = allMembers.find(function(p) { return p.spouseCin === m.cin; });
+            return !spouseRegistered && !husbandHasHerAsMother && !fatherRegistered;
           });
           var nodes = rootMales.map(function(male) {
             var female = allMembers.find(function(m) { return m.cin === male.spouseCin; });
